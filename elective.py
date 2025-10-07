@@ -70,7 +70,7 @@ def load_market_prices():
 # -------------------- Streamlit UI --------------------
 
 st.set_page_config(page_title="🌾 Agri Dashboard", layout="wide")
-st.title("🌾 Agri Dashboard - All in One")
+st.title("🌾 Agri Dashboard ")
 
 # -------------------- Crop Dashboard --------------------
 st.header("🌱 Crop Records")
@@ -153,3 +153,4 @@ with st.form("chat_form"):
             st.write(answer)
         else:
             st.warning("Enter your question and make sure API key is available")
+
