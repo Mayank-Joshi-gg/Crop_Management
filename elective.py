@@ -8,9 +8,15 @@ import openai
 # -------------------- Constants --------------------
 STORAGE_FILE = "crops.json"
 
-# -------------------- Load API keys from secrets --------------------
-OPENAI_KEY = st.secrets["OPENAI_KEY"]
-WEATHER_KEY = st.secrets["WEATHER_KEY"]
+# -------------------- Load API keys --------------------
+OPENAI_KEY = st.secrets.get("OPENAI_KEY", None)
+WEATHER_KEY = st.secrets.get("WEATHER_KEY", None)
+
+# Fallback if secrets missing
+if OPENAI_KEY is None:
+    OPENAI_KEY = st.text_input("Enter OpenAI API Key", type="password")
+if WEATHER_KEY is None:
+    WEATHER_KEY = st.text_input("Enter OpenWeatherMap API Key", type="password")
 
 # -------------------- Helper Functions --------------------
 
@@ -36,14 +42,6 @@ def get_weather(city, api_key):
     except:
         return "Error: Could not fetch weather"
 
-def load_market_prices():
-    data = {
-        "Crop": ["Wheat", "Rice", "Maize", "Tomato"],
-        "Price per Qtl": [2200, 2500, 1800, 6000],
-        "Market": ["Market A", "Market B", "Market A", "Market C"]
-    }
-    return pd.DataFrame(data)
-
 def gpt4o_chatbot_response(query, api_key):
     try:
         openai.api_key = api_key
@@ -59,6 +57,15 @@ def gpt4o_chatbot_response(query, api_key):
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Error: {e}"
+
+def load_market_prices():
+    data = {
+        "Crop": ["Wheat", "Rice", "Maize", "Tomato", "Potato", "Onion", "Sugarcane", "Soybean"],
+        "Market A": [2200, 2400, 1800, 6000, 1200, 1500, 3000, 2500],
+        "Market B": [2250, 2500, 1850, 6100, 1250, 1550, 3050, 2600],
+        "Market C": [2180, 2450, 1900, 5950, 1180, 1520, 2980, 2550]
+    }
+    return pd.DataFrame(data)
 
 # -------------------- Streamlit UI --------------------
 
@@ -102,28 +109,47 @@ with st.form("weather_form"):
     city = st.text_input("Enter City", key="weather_city")
     weather_submitted = st.form_submit_button("Get Weather")
     if weather_submitted:
-        if city:
+        if city and WEATHER_KEY:
             st.write(get_weather(city, WEATHER_KEY))
         else:
-            st.warning("Enter city name")
+            st.warning("Enter city name and API key")
 
 st.markdown("---")
 
 # -------------------- Market Prices --------------------
 st.header("💰 Market Prices")
 df = load_market_prices()
-st.table(df)
+
+# Crop filter
+crop_filter = st.selectbox("Select a crop to view prices", ["All"] + df["Crop"].tolist())
+if crop_filter != "All":
+    df_filtered = df[df["Crop"] == crop_filter]
+else:
+    df_filtered = df.copy()
+
+# Format numeric columns as integers
+df_filtered_formatted = df_filtered.copy()
+numeric_cols = df_filtered_formatted.select_dtypes(include="number").columns
+df_filtered_formatted[numeric_cols] = df_filtered_formatted[numeric_cols].astype(int)
+
+# Display table
+st.dataframe(df_filtered_formatted)
+
+# Bar chart visualization
+st.subheader("📊 Price Comparison Chart")
+chart_data = df_filtered_formatted.set_index("Crop")
+st.bar_chart(chart_data)
 
 st.markdown("---")
 
 # -------------------- GPT-4o-mini Chatbot --------------------
-st.header("🤖 Ask AgriBot")
+st.header("🤖 Ask AgriBot (GPT-4o-mini)")
 with st.form("chat_form"):
     query = st.text_input("Ask me something...", key="chat_query")
     chat_submitted = st.form_submit_button("Ask")
     if chat_submitted:
-        if query:
+        if query and OPENAI_KEY:
             answer = gpt4o_chatbot_response(query, OPENAI_KEY)
             st.write(answer)
         else:
-            st.warning("Enter your question")
+            st.warning("Enter your question and make sure API key is available")
