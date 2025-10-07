@@ -31,16 +31,30 @@ def save_crops(crops):
     with open(STORAGE_FILE, "w") as f:
         json.dump(crops, f, indent=2)
 
-def get_weather(city, api_key):
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+def get_weather(city_name):
     try:
-        r = requests.get(url).json()
-        if "main" in r:
-            return f"{city}: {r['main']['temp']}°C, {r['weather'][0]['description']}"
-        else:
-            return "Error: check city name or API key"
-    except:
-        return "Error: Could not fetch weather"
+        # Get coordinates from city name
+        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={WEATHER_KEY}"
+        geo_data = requests.get(geo_url).json()
+        if not geo_data:
+            return "⚠️ City not found."
+        lat, lon = geo_data[0]["lat"], geo_data[0]["lon"]
+        # Get weather using coordinates
+        weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_KEY}&units=metric"
+        weather_data = requests.get(weather_url).json()
+        description = weather_data["weather"][0]["description"].capitalize()
+        temp = weather_data["main"]["temp"]
+        wind = weather_data["wind"]["speed"]
+
+        return (
+            f"📍 Location: {city_name}\n"
+            f"🌤 Weather: {description}\n"
+            f"🌡 Temperature: {temp} °C\n"
+            f"💨 Wind Speed: {wind} m/s"
+        )
+
+    except Exception:
+        return "⚠️ Unable to fetch weather data."
 
 def gpt4o_chatbot_response(query, api_key):
     try:
@@ -110,7 +124,7 @@ with st.form("weather_form"):
     weather_submitted = st.form_submit_button("Get Weather")
     if weather_submitted:
         if city and WEATHER_KEY:
-            st.write(get_weather(city, WEATHER_KEY))
+            st.text(get_weather(city))
         else:
             st.warning("Enter city name and API key")
 
@@ -143,7 +157,7 @@ st.bar_chart(chart_data)
 st.markdown("---")
 
 # -------------------- GPT-4o-mini Chatbot --------------------
-st.header("🤖 Ask AgriBot (GPT-4o-mini)")
+st.header("🤖 Ask AgriBot ")
 with st.form("chat_form"):
     query = st.text_input("Ask me something...", key="chat_query")
     chat_submitted = st.form_submit_button("Ask")
@@ -153,4 +167,3 @@ with st.form("chat_form"):
             st.write(answer)
         else:
             st.warning("Enter your question and make sure API key is available")
-
