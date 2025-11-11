@@ -4,6 +4,8 @@ import requests
 import pandas as pd
 from datetime import datetime
 import openai
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # -------------------- Constants --------------------
 STORAGE_FILE = "crops.json"
@@ -12,7 +14,6 @@ STORAGE_FILE = "crops.json"
 OPENAI_KEY = st.secrets.get("OPENAI_KEY", None)
 WEATHER_KEY = st.secrets.get("WEATHER_KEY", None)
 
-# Fallback if secrets missing
 if OPENAI_KEY is None:
     OPENAI_KEY = st.text_input("Enter OpenAI API Key", type="password")
 if WEATHER_KEY is None:
@@ -33,15 +34,17 @@ def save_crops(crops):
 
 def get_weather(city_name):
     try:
-        # Get coordinates from city name
+        # Step 1: Get coordinates from city name
         geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={WEATHER_KEY}"
         geo_data = requests.get(geo_url).json()
         if not geo_data:
             return "⚠️ City not found."
         lat, lon = geo_data[0]["lat"], geo_data[0]["lon"]
-        # Get weather using coordinates
+
+        # Step 2: Get weather using coordinates
         weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_KEY}&units=metric"
         weather_data = requests.get(weather_url).json()
+
         description = weather_data["weather"][0]["description"].capitalize()
         temp = weather_data["main"]["temp"]
         wind = weather_data["wind"]["speed"]
@@ -84,7 +87,7 @@ def load_market_prices():
 # -------------------- Streamlit UI --------------------
 
 st.set_page_config(page_title="🌾 Agri Dashboard", layout="wide")
-st.title("🌾 Agri Dashboard ")
+st.title("🌾 Agri Dashboard - All in One")
 
 # -------------------- Crop Dashboard --------------------
 st.header("🌱 Crop Records")
@@ -156,8 +159,39 @@ st.bar_chart(chart_data)
 
 st.markdown("---")
 
+# -------------------- Crop Yield Prediction (ML Model) --------------------
+st.header("🤖 Crop Yield Prediction (ML Model)")
+
+# Example training data (area, rainfall, temperature, fertilizer -> yield)
+X = np.array([
+    [1.0, 800, 25, 100],
+    [2.0, 900, 28, 150],
+    [1.5, 700, 22, 90],
+    [3.0, 1000, 30, 200],
+    [2.5, 850, 27, 160],
+])
+y = np.array([20, 40, 25, 60, 50])  # yield values
+
+model = LinearRegression()
+model.fit(X, y)
+
+st.subheader("📈 Predict Your Crop Yield")
+with st.form("predict_form"):
+    area_in = st.number_input("Area (hectares)", min_value=0.1, step=0.1)
+    rain_in = st.number_input("Rainfall (mm)", min_value=0.0, step=10.0)
+    temp_in = st.number_input("Temperature (°C)", min_value=0.0, step=1.0)
+    fert_in = st.number_input("Fertilizer Used (kg/ha)", min_value=0.0, step=10.0)
+    predict_btn = st.form_submit_button("Predict Yield")
+
+    if predict_btn:
+        input_data = np.array([[area_in, rain_in, temp_in, fert_in]])
+        prediction = model.predict(input_data)[0]
+        st.success(f"🌾 Estimated Yield: **{prediction:.2f} quintals**")
+
+st.markdown("---")
+
 # -------------------- GPT-4o-mini Chatbot --------------------
-st.header("🤖 Ask AgriBot ")
+st.header("🧑‍🌾 Ask AgriBot")
 with st.form("chat_form"):
     query = st.text_input("Ask me something...", key="chat_query")
     chat_submitted = st.form_submit_button("Ask")
