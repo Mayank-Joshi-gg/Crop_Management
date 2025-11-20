@@ -4,6 +4,8 @@ import requests
 import pandas as pd
 from datetime import datetime
 import openai
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # -------------------- Constants --------------------
 STORAGE_FILE = "crops.json"
@@ -12,7 +14,6 @@ STORAGE_FILE = "crops.json"
 OPENAI_KEY = st.secrets.get("OPENAI_KEY", None)
 WEATHER_KEY = st.secrets.get("WEATHER_KEY", None)
 
-# Fallback if secrets missing
 if OPENAI_KEY is None:
     OPENAI_KEY = st.text_input("Enter OpenAI API Key", type="password")
 if WEATHER_KEY is None:
@@ -158,8 +159,39 @@ st.bar_chart(chart_data)
 
 st.markdown("---")
 
+# -------------------- Crop Yield Prediction (ML Model) --------------------
+st.header("🤖 Crop Yield Prediction (ML Model)")
+
+# Example training data (area, rainfall, temperature, fertilizer -> yield)
+X = np.array([
+    [1.0, 800, 25, 100],
+    [2.0, 900, 28, 150],
+    [1.5, 700, 22, 90],
+    [3.0, 1000, 30, 200],
+    [2.5, 850, 27, 160],
+])
+y = np.array([20, 40, 25, 60, 50])  # yield values
+
+model = LinearRegression()
+model.fit(X, y)
+
+st.subheader("📈 Predict Your Crop Yield")
+with st.form("predict_form"):
+    area_in = st.number_input("Area (hectares)", min_value=0.1, step=0.1)
+    rain_in = st.number_input("Rainfall (mm)", min_value=0.0, step=10.0)
+    temp_in = st.number_input("Temperature (°C)", min_value=0.0, step=1.0)
+    fert_in = st.number_input("Fertilizer Used (kg/ha)", min_value=0.0, step=10.0)
+    predict_btn = st.form_submit_button("Predict Yield")
+
+    if predict_btn:
+        input_data = np.array([[area_in, rain_in, temp_in, fert_in]])
+        prediction = model.predict(input_data)[0]
+        st.success(f"🌾 Estimated Yield: **{prediction:.2f} quintals**")
+
+st.markdown("---")
+
 # -------------------- GPT-4o-mini Chatbot --------------------
-st.header("🤖 Ask AgriBot ")
+st.header("🧑‍🌾 Ask AgriBot")
 with st.form("chat_form"):
     query = st.text_input("Ask me something...", key="chat_query")
     chat_submitted = st.form_submit_button("Ask")
@@ -169,5 +201,3 @@ with st.form("chat_form"):
             st.write(answer)
         else:
             st.warning("Enter your question and make sure API key is available")
-
-# USe ML ALgorithms any one .
