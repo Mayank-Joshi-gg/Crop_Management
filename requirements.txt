@@ -1,4 +1,6 @@
 streamlit
 requests
 openai
+numpy
 pandas
+scikit-learn
